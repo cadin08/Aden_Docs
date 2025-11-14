@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<link rel="icon" type="image/png" href="https://images.vexels.com/media/users/3/189101/isolated/preview/693f7da0ef1625c6b281f1428a7ecdbb-fuegos-artificiales-de-2-anillos-degradado-verde.png?w=360">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Aden Docs</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@7.6.0/build/index.umd.min.js"></script>
+
+<style>
+:root{
+  --bg-light: #f0f4f8;
+  --bg-dark: #02060a;
+  --glass-light: rgba(255,255,255,0.1);
+  --glass-dark: rgba(10,18,22,0.36);
+  --text-light: #111;
+  --text-dark: #e9fbf7;
+  --muted-light: #555;
+  --muted-dark: #9edfe6;
+  --accent-green: #39ffb3;
+  --accent-blue: #3fb8ff;
+  --radius: 20px;
+  --toolbar-h: 70px;
+  --transition: 240ms cubic-bezier(.2,.9,.2,1);
+  font-family: 'Inter', sans-serif;
+}
+
+*{box-sizing:border-box;}
+html,body{height:100%;margin:0;font-family:inherit;}
+
+body.light{background:var(--bg-light); color:var(--text-light);}
+body.dark{background:var(--bg-dark); color:var(--text-dark);}
+
+.app{display:grid;grid-template-columns:280px 1fr 300px;gap:20px;padding:20px;height:100vh;overflow:hidden;}
+.card{border-radius:var(--radius); padding:16px; display:flex; flex-direction:column; backdrop-filter: blur(15px) saturate(1.2); border:1px solid rgba(255,255,255,0.1); transition: var(--transition);}
+.left, .right{overflow-y:auto;}
+.logo{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+.badge{width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--accent-green),var(--accent-blue));color:#001;font-weight:800;font-size:18px;box-shadow:0 8px 40px rgba(57,255,179,0.2);}
+.docs-list{display:flex;flex-direction:column;gap:8px;flex:1;margin-top:12px;}
+.doc-item{padding:10px;border-radius:12px;cursor:pointer;transition:var(--transition);display:flex;justify-content:space-between;align-items:center;}
+.doc-item:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(63,184,255,0.2);}
+.pill{border-radius:9999px;padding:8px 12px;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:var(--transition);}
+.pill.primary{background:linear-gradient(90deg,var(--accent-green),var(--accent-blue));color:#001;font-weight:700;box-shadow:0 8px 40px rgba(57,255,179,0.2);}
+.editor-wrap{display:flex;flex-direction:column;}
+#toolbar{display:flex;align-items:center;gap:6px;padding:8px;border-radius:var(--radius);margin-bottom:12px;background:rgba(255,255,255,0.05);flex-wrap:wrap;}
+.tool{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;cursor:pointer;transition:var(--transition);font-weight:600;}
+.tool:hover{box-shadow:0 8px 20px rgba(57,255,179,0.3);background:linear-gradient(135deg,var(--accent-green),var(--accent-blue));color:#001;}
+select, .input, input[type=color]{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:6px 8px;font-size:14px;color:inherit;}
+.surface{flex:1;border-radius:var(--radius);padding:16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);overflow-y:auto;}
+#editor{min-height:60vh;outline:none;font-size:16px;line-height:1.6;color:inherit;}
+.actions{display:flex;gap:8px;margin-top:12px;justify-content:flex-end;flex-wrap:wrap;}
+.right h4{margin-bottom:6px; font-weight:600;}
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.2);border-radius:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+@media (max-width:1100px){.app{grid-template-columns:1fr;grid-template-rows:auto 1fr auto;}.right{order:3;}.left{order:1;}.editor-wrap{order:2;}}
+</style>
+</head>
+<body class="dark">
+
+<div class="app">
+
+  <!-- LEFT PANEL -->
+  <aside class="card left">
+    <div class="logo">
+      <div class="badge">AD</div>
+      <div>
+        <h2 style="font-size:16px">Aden Docs</h2>
+        <div style="font-size:12px;color:var(--muted-dark)">Neo Crystal • Neon</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <button id="newDoc" class="pill primary">➕ Nuevo</button>
+      <button id="saveSnapshot" class="pill">📸 Snapshot</button>
+    </div>
+    <div class="docs-list" id="docsList"></div>
+  </aside>
+
+  <!-- CENTER EDITOR -->
+  <main class="editor-wrap">
+    <div id="toolbar">
+      <div class="tool" data-cmd="bold">B</div>
+      <div class="tool" data-cmd="italic">I</div>
+      <div class="tool" data-cmd="underline">U</div>
+      <div class="tool" data-cmd="strikeThrough">S</div>
+      <div class="tool" data-cmd="insertOrderedList">OL</div>
+      <div class="tool" data-cmd="insertUnorderedList">UL</div>
+      <select id="fontSize"><option value="14px">14</option><option value="16px" selected>16</option><option value="18px">18</option></select>
+      <select id="fontFamily"><option value="Inter">Inter</option><option value="Arial">Arial</option></select>
+      <select id="themeSelect">
+        <option value="dark">Oscuro</option>
+        <option value="light">Claro</option>
+      </select>
+      <input type="color" id="foreColor" title="Color de texto">
+      <input type="color" id="backColor" title="Resaltar">
+    </div>
+    <div class="surface">
+      <div id="editor" contenteditable="true">
+        <p>Bienvenido a <b>Aden Docs</b>, <i>cristal templado</i> y <u>minimalista</u>.</p>
+      </div>
+    </div>
+    <div class="actions">
+      <button id="exportHTML" class="pill primary">Exportar HTML</button>
+      <button id="exportPDF" class="pill primary">Exportar PDF</button>
+      <button id="exportDOCX" class="pill primary">Exportar DOCX</button>
+    </div>
+  </main>
+
+  <!-- RIGHT PANEL -->
+  <aside class="card right">
+    <div>
+      <h4>Documento</h4>
+      <input id="docTitle" class="input" placeholder="Título del documento">
+    </div>
+    <div style="margin-top:12px">
+      <h4>Preferencias</h4>
+      <label><input type="checkbox" id="autosaveToggle" checked> Autosave</label>
+    </div>
+    <div style="margin-top:12px">
+      <h4>Snapshots</h4>
+      <div id="snapshots"></div>
+    </div>
+  </aside>
+
+</div>
+
+<script>
+// Helpers
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const editor = $('#editor');
+const docTitle = $('#docTitle');
+const autosaveToggle = $('#autosaveToggle');
+const docsList = $('#docsList');
+const snapshotsEl = $('#snapshots');
+const themeSelect = $('#themeSelect');
+
+const STORAGE_KEY = 'aden_docs_active';
+const LIST_KEY = 'aden_docs_list';
+const SNAP_KEY = 'aden_docs_snaps';
+let currentId = null;
+let autosaveEnabled = true;
+
+// Formatting
+$$('[data-cmd]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    editor.focus();
+    const cmd = btn.dataset.cmd;
+    document.execCommand(cmd, false, null);
+  });
+});
+
+$('#fontSize').addEventListener('change', e => { editor.style.fontSize = e.target.value; });
+$('#fontFamily').addEventListener('change', e => { editor.style.fontFamily = e.target.value; });
+
+$('#foreColor').addEventListener('change', e => { editor.focus(); document.execCommand('foreColor', false, e.target.value); });
+$('#backColor').addEventListener('change', e => { editor.focus(); document.execCommand('hiliteColor', false, e.target.value); });
+
+// Theme switch
+themeSelect.addEventListener('change', e=>{ document.body.className = e.target.value; });
+
+// New doc
+$('#newDoc').addEventListener('click', ()=>{ 
+  if(confirm('Nuevo documento? Se perderá el contenido no guardado.')) {
+    editor.innerHTML = '<p>Documento nuevo</p>'; 
+    docTitle.value=''; currentId=null; saveIfNeeded(); 
+  }
+});
+
+// Autosave
+autosaveToggle.addEventListener('change', e=>{ autosaveEnabled = e.target.checked; saveIfNeeded(); });
+
+// Save/load
+function saveDoc(){ 
+  const list = JSON.parse(localStorage.getItem(LIST_KEY) || '[]');
+  const id = currentId || Date.now().toString();
+  const item = {id, title: docTitle.value||'Untitled', content: editor.innerHTML, updated: Date.now()};
+  const existing = list.find(x=>x.id==id);
+  if(existing) Object.assign(existing, item);
+  else list.unshift(item);
+  localStorage.setItem(LIST_KEY, JSON.stringify(list.slice(0,60)));
+  currentId = id;
+  renderDocsList();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({id:currentId, title:docTitle.value}));
+}
+function saveIfNeeded(){ if(autosaveEnabled) saveDoc(); }
+
+function renderDocsList(){ 
+  const list = JSON.parse(localStorage.getItem(LIST_KEY) || '[]');
+  docsList.innerHTML=''; 
+  list.forEach(d=>{
+    const el = document.createElement('div'); el.className='doc-item';
+    el.innerHTML = `<span>${d.title}</span><button data-id='${d.id}'>Abrir</button>`;
+    docsList.appendChild(el);
+  });
+  docsList.querySelectorAll('button').forEach(b=>b.addEventListener('click', ()=>openDoc(b.dataset.id)));
+}
+
+function openDoc(id){ 
+  const list = JSON.parse(localStorage.getItem(LIST_KEY) || '[]');
+  const d = list.find(x=>x.id==id); 
+  if(d && confirm('Abrir documento reemplazará el actual?')) { 
+    editor.innerHTML=d.content; docTitle.value=d.title; currentId=d.id; saveIfNeeded(); 
+  } 
+}
+
+// Snapshots
+$('#saveSnapshot').addEventListener('click', ()=>createSnapshot());
+function createSnapshot(){
+  const snaps = JSON.parse(localStorage.getItem(SNAP_KEY) || '[]');
+  const snap = {id:Date.now(), title: docTitle.value||'Untitled', content: editor.innerHTML, date:new Date().toISOString()};
+  snaps.unshift(snap); localStorage.setItem(SNAP_KEY, JSON.stringify(snaps.slice(0,40)));
+  renderSnapshots();
+}
+function renderSnapshots(){ 
+  const snaps = JSON.parse(localStorage.getItem(SNAP_KEY) || '[]');
+  snapshotsEl.innerHTML='';
+  snaps.forEach(s=>{
+    const el = document.createElement('div'); 
+    el.style.display='flex'; el.style.justifyContent='space-between'; el.style.marginBottom='4px';
+    el.innerHTML = `<span>${s.title}</span><button data-id='${s.id}'>Restaurar</button>`;
+    snapshotsEl.appendChild(el);
+    el.querySelector('button').addEventListener('click', ()=>{ if(confirm('Restaurar snapshot?')){ editor.innerHTML=s.content; saveIfNeeded(); } });
+  });
+}
+
+// Exports
+$('#exportHTML').addEventListener('click', ()=>exportHTML());
+$('#exportPDF').addEventListener('click', ()=>exportPDF());
+$('#exportDOCX').addEventListener('click', ()=>exportDOCX());
+
+function exportHTML(){
+  const title = docTitle.value || 'documento';
+  const content = `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title></head><body>${editor.innerHTML}</body></html>`;
+  const blob = new Blob([content], {type:'text/html'}); saveAs(blob, `${title}.html`);
+}
+
+async function exportPDF(){
+  const canvas = await html2canvas(editor, {scale:2});
+  const imgData = canvas.toDataURL('image/png');
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF('p','pt','a4');
+  const imgProps = pdf.getImageProperties(imgData);
+  const pdfWidth = pdf.internal.pageSize.getWidth();
+  const pdfHeight = (imgProps.height * pdfWidth)/imgProps.width;
+  pdf.addImage(imgData,'PNG',0,0,pdfWidth,pdfHeight);
+  pdf.save((docTitle.value||'documento')+'.pdf');
+}
+
+async function exportDOCX(){
+  const title = docTitle.value||'documento';
+  const doc = new window.docx.Document();
+  const container = document.createElement('div'); container.innerHTML = editor.innerHTML;
+  function parseNode(node){
+    if(node.nodeType!==Node.ELEMENT_NODE) return [];
+    let children = [];
+    if(node.tagName==='P'){
+      let para = new window.docx.Paragraph();
+      node.childNodes.forEach(n=>{
+        if(n.nodeType===Node.TEXT_NODE) para.addRun(new window.docx.TextRun(n.textContent));
+        else if(n.nodeType===Node.ELEMENT_NODE){
+          let tr = new window.docx.TextRun({text:n.innerText});
+          if(n.tagName==='B') tr.bold();
+          if(n.tagName==='I') tr.italics();
+          if(n.tagName==='U') tr.underline();
+          if(n.tagName==='S') tr.strike();
+          children.push(new window.docx.Paragraph({children:[tr]}));
+        }
+      });
+      children.push(para);
+    } else if(node.tagName.match(/^H[1-6]$/)) {
+      children.push(new window.docx.Paragraph({text:node.innerText, heading:window.docx.HeadingLevel.HEADING_1}));
+    } else if(node.tagName==='UL') {
+      Array.from(node.children).forEach(li=>{
+        children.push(new window.docx.Paragraph({text:li.innerText, bullet:true}));
+      });
+    } else if(node.tagName==='OL') {
+      Array.from(node.children).forEach(li=>{
+        children.push(new window.docx.Paragraph({text:li.innerText, numbering:{reference:"num1", level:0}}));
+      });
+    }
+    return children;
+  }
+  let paragraphs = [];
+  container.childNodes.forEach(n=>{ paragraphs.push(...parseNode(n)); });
+  doc.addSection({children:paragraphs});
+  const packer = new window.docx.Packer();
+  const blob = await packer.toBlob(doc);
+  saveAs(blob, title+'.docx');
+}
+
+// Init
+function init(){ renderDocsList(); renderSnapshots(); }
+init();
+</script>
+</body>
+</html>
+
